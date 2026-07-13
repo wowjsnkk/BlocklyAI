@@ -1,0 +1,1825 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BlocklyAI — AI辅助编程教学平台</title>
+<script src="https://unpkg.com/blockly@10.4.3/blockly_compressed.js"></script>
+<script src="https://unpkg.com/blockly@10.4.3/blocks_compressed.js"></script>
+<script src="https://unpkg.com/blockly@10.4.3/javascript_compressed.js"></script>
+<script src="https://unpkg.com/blockly@10.4.3/python_compressed.js"></script>
+<script src="https://unpkg.com/blockly@10.4.3/msg/zh-hans.js"></script>
+<style>
+  :root {
+    --primary: #2563eb;
+    --primary-dark: #1d4ed8;
+    --secondary: #7c3aed;
+    --accent: #06b6d4;
+    --success: #10b981;
+    --warning: #f59e0b;
+    --danger: #ef4444;
+    --bg: #f8fafc;
+    --sidebar-bg: #1e1b4b;
+    --card-bg: #ffffff;
+    --border: #e2e8f0;
+    --text: #1e293b;
+    --text-muted: #64748b;
+    --radius: 12px;
+    --shadow: 0 4px 24px rgba(0,0,0,0.08);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'PingFang SC', 'Microsoft YaHei', -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ===== TOP NAV ===== */
+  .topnav {
+    height: 52px;
+    background: var(--sidebar-bg);
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    gap: 12px;
+    flex-shrink: 0;
+    z-index: 100;
+  }
+  .topnav .logo {
+    display: flex; align-items: center; gap: 8px;
+    color: white; font-weight: 700; font-size: 18px; letter-spacing: 0.5px;
+  }
+  .topnav .logo span.ai-badge {
+    background: linear-gradient(135deg, #7c3aed, #2563eb);
+    color: white; font-size: 10px; font-weight: 700;
+    padding: 2px 6px; border-radius: 4px; letter-spacing: 1px;
+  }
+  .topnav .nav-tabs {
+    display: flex; gap: 4px; margin-left: 24px;
+  }
+  .topnav .nav-tab {
+    color: rgba(255,255,255,0.65); font-size: 13px; padding: 5px 12px;
+    border-radius: 6px; cursor: pointer; transition: all 0.2s;
+    border: 1px solid transparent;
+  }
+  .topnav .nav-tab.active, .topnav .nav-tab:hover {
+    background: rgba(255,255,255,0.15); color: white;
+    border-color: rgba(255,255,255,0.2);
+  }
+  .topnav .spacer { flex: 1; }
+  .topnav .user-info {
+    display: flex; align-items: center; gap: 8px; color: rgba(255,255,255,0.8);
+    font-size: 13px;
+  }
+  .topnav .avatar {
+    width: 28px; height: 28px; border-radius: 50%;
+    background: linear-gradient(135deg, #7c3aed, #06b6d4);
+    display: flex; align-items: center; justify-content: center;
+    color: white; font-size: 12px; font-weight: 700;
+  }
+
+  /* ===== MAIN LAYOUT ===== */
+  .main-layout {
+    display: flex; flex: 1; overflow: hidden;
+  }
+
+  /* ===== TOOLBOX SIDEBAR ===== */
+  .toolbox-sidebar {
+    width: 220px; background: #fff; border-right: 1px solid var(--border);
+    display: flex; flex-direction: column; overflow: hidden; flex-shrink: 0;
+  }
+  .toolbox-header {
+    padding: 12px 14px; background: #f1f5f9;
+    border-bottom: 1px solid var(--border);
+    font-size: 12px; font-weight: 600; color: var(--text-muted);
+    letter-spacing: 0.5px; text-transform: uppercase;
+  }
+  .toolbox-cats { overflow-y: auto; flex: 1; }
+  .cat-item {
+    padding: 10px 14px; display: flex; align-items: center; gap: 8px;
+    cursor: pointer; font-size: 13px; font-weight: 500;
+    border-bottom: 1px solid #f0f4f8; transition: background 0.15s;
+  }
+  .cat-item:hover { background: #f8fafc; }
+  .cat-item.active { background: #eff6ff; color: var(--primary); }
+  .cat-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+
+  /* ===== WORKSPACE CENTER ===== */
+  .workspace-center {
+    flex: 1; display: flex; flex-direction: column; min-width: 0; overflow: hidden;
+  }
+  .workspace-toolbar {
+    height: 44px; background: #fff; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; padding: 0 12px; gap: 8px; flex-shrink: 0;
+  }
+  .btn {
+    padding: 6px 14px; border: none; border-radius: 6px; cursor: pointer;
+    font-size: 13px; font-weight: 500; transition: all 0.2s; display: flex;
+    align-items: center; gap: 5px;
+  }
+  .btn-primary { background: var(--primary); color: white; }
+  .btn-primary:hover { background: var(--primary-dark); }
+  .btn-success { background: var(--success); color: white; }
+  .btn-success:hover { background: #059669; }
+  .btn-warning { background: var(--warning); color: white; }
+  .btn-warning:hover { background: #d97706; }
+  .btn-ghost { background: #f1f5f9; color: var(--text); border: 1px solid var(--border); }
+  .btn-ghost:hover { background: #e2e8f0; }
+  .btn-danger { background: var(--danger); color: white; }
+  .btn-danger:hover { background: #dc2626; }
+  .btn svg { width: 14px; height: 14px; flex-shrink: 0; }
+  .toolbar-sep { width: 1px; height: 24px; background: var(--border); margin: 0 4px; }
+  .toolbar-title { font-size: 13px; color: var(--text-muted); margin-left: auto; }
+
+  /* Blockly container */
+  #blockly-container {
+    flex: 1; position: relative; overflow: hidden;
+  }
+  #blocklyDiv {
+    width: 100%; height: 100%;
+  }
+
+  /* ===== RIGHT PANEL ===== */
+  .right-panel {
+    width: 320px; background: #fff; border-left: 1px solid var(--border);
+    display: flex; flex-direction: column; overflow: hidden; flex-shrink: 0;
+  }
+  .panel-tabs {
+    display: flex; border-bottom: 1px solid var(--border); flex-shrink: 0;
+    background: #f8fafc;
+  }
+  .panel-tab {
+    flex: 1; padding: 10px 8px; font-size: 12px; font-weight: 600;
+    text-align: center; cursor: pointer; border-bottom: 2px solid transparent;
+    transition: all 0.2s; color: var(--text-muted);
+  }
+  .panel-tab.active { color: var(--primary); border-bottom-color: var(--primary); background: white; }
+  .panel-tab:hover:not(.active) { color: var(--text); background: #f1f5f9; }
+  .panel-content { flex: 1; overflow-y: auto; display: none; flex-direction: column; }
+  .panel-content.active { display: flex; }
+
+  /* AI Intent Panel */
+  .ai-section { padding: 14px; border-bottom: 1px solid #f0f4f8; }
+  .ai-section-title {
+    font-size: 12px; font-weight: 700; color: var(--text-muted);
+    text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .ai-section-title .badge {
+    background: linear-gradient(135deg, #7c3aed, #2563eb);
+    color: white; font-size: 9px; padding: 1px 5px; border-radius: 3px; font-weight: 700;
+  }
+  .intent-textarea {
+    width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px;
+    font-size: 13px; resize: none; height: 72px; font-family: inherit;
+    background: #fafbfc; outline: none; transition: border 0.2s;
+  }
+  .intent-textarea:focus { border-color: var(--primary); background: white; }
+  .intent-btn {
+    margin-top: 8px; width: 100%; padding: 8px;
+    background: linear-gradient(135deg, #7c3aed, #2563eb);
+    color: white; border: none; border-radius: 8px; font-size: 13px;
+    font-weight: 600; cursor: pointer; transition: opacity 0.2s;
+  }
+  .intent-btn:hover { opacity: 0.9; }
+
+  /* AI Result Cards */
+  .ai-result-card {
+    margin: 8px 14px; padding: 10px 12px; border-radius: 8px;
+    border: 1px solid; font-size: 12px; line-height: 1.6;
+  }
+  .ai-result-card.intent { border-color: #c4b5fd; background: #faf5ff; }
+  .ai-result-card.error { border-color: #fca5a5; background: #fff5f5; }
+  .ai-result-card.challenge { border-color: #6ee7b7; background: #f0fdf4; }
+  .ai-result-card.info { border-color: #bae6fd; background: #f0f9ff; }
+  .ai-result-title { font-weight: 700; margin-bottom: 4px; display: flex; align-items: center; gap: 5px; }
+  .ai-result-title .icon { font-size: 14px; }
+  .ai-block-chip {
+    display: inline-flex; align-items: center; padding: 2px 7px;
+    border-radius: 4px; font-size: 11px; font-weight: 600; margin: 2px;
+    cursor: pointer; color: white; transition: opacity 0.2s;
+  }
+  .ai-block-chip:hover { opacity: 0.85; }
+
+  /* Errors list */
+  .error-list { padding: 8px 14px; }
+  .error-item {
+    display: flex; gap: 8px; padding: 8px 10px; border-radius: 8px;
+    margin-bottom: 6px; background: #fff5f5; border: 1px solid #fca5a5;
+    font-size: 12px; line-height: 1.5;
+  }
+  .error-item .error-icon { font-size: 16px; flex-shrink: 0; }
+  .error-item .error-fix {
+    margin-top: 4px; padding: 3px 7px; border-radius: 4px;
+    background: var(--danger); color: white; font-size: 11px;
+    font-weight: 600; cursor: pointer; display: inline-block;
+  }
+  .no-error {
+    padding: 20px 14px; text-align: center; color: var(--success);
+    font-size: 13px; font-weight: 600;
+  }
+  .no-error .icon { font-size: 32px; display: block; margin-bottom: 6px; }
+
+  /* Challenge cards */
+  .challenge-list { padding: 8px 14px; }
+  .challenge-card {
+    padding: 10px 12px; border-radius: 8px; margin-bottom: 8px;
+    border: 1px solid var(--border); background: #fafbfc; cursor: pointer;
+    transition: all 0.2s;
+  }
+  .challenge-card:hover { border-color: var(--success); background: #f0fdf4; }
+  .challenge-card .level {
+    font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 3px;
+    display: inline-block; margin-bottom: 4px;
+  }
+  .level-easy { background: #d1fae5; color: #065f46; }
+  .level-medium { background: #fef3c7; color: #92400e; }
+  .level-hard { background: #fee2e2; color: #991b1b; }
+  .challenge-title { font-size: 13px; font-weight: 600; margin-bottom: 3px; }
+  .challenge-desc { font-size: 11px; color: var(--text-muted); line-height: 1.5; }
+
+  /* ===== MICROBIT PANEL ===== */
+  .microbit-wrap { padding: 14px; display: flex; flex-direction: column; align-items: center; gap: 12px; }
+  .microbit-device {
+    width: 200px; background: #1a1a2e; border-radius: 16px;
+    padding: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+  }
+  .microbit-label {
+    text-align: center; color: #7c7c9a; font-size: 10px; font-weight: 700;
+    letter-spacing: 2px; margin-bottom: 10px; text-transform: uppercase;
+  }
+  .microbit-screen {
+    background: #0a0a1a; border-radius: 8px; padding: 8px;
+    display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px;
+    margin-bottom: 10px;
+  }
+  .led {
+    aspect-ratio: 1; border-radius: 50%;
+    background: #1a1a2e; transition: all 0.2s;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.5);
+  }
+  .led.on { background: #ff3535; box-shadow: 0 0 8px #ff3535, 0 0 16px rgba(255,53,53,0.4); }
+  .led.dim { background: #7a1a1a; box-shadow: inset 0 2px 4px rgba(0,0,0,0.3); }
+  .microbit-buttons {
+    display: flex; justify-content: space-between; gap: 8px;
+  }
+  .mb-btn {
+    flex: 1; padding: 6px; background: #2a2a4a; border: none; border-radius: 6px;
+    color: #9090c0; font-size: 11px; font-weight: 700; cursor: pointer;
+    transition: all 0.15s; letter-spacing: 1px;
+  }
+  .mb-btn:hover, .mb-btn:active { background: #3a3a6a; color: white; }
+
+  .code-preview {
+    width: 100%; background: #1e2235; border-radius: 8px; padding: 10px 12px;
+    font-family: 'Consolas', 'Monaco', monospace; font-size: 11px;
+    color: #a9c0f5; line-height: 1.7; max-height: 180px; overflow-y: auto;
+    white-space: pre;
+  }
+  .run-btn {
+    width: 100%; padding: 10px; background: var(--success); color: white;
+    border: none; border-radius: 8px; font-size: 14px; font-weight: 700;
+    cursor: pointer; transition: all 0.2s; display: flex; align-items: center;
+    justify-content: center; gap: 6px;
+  }
+  .run-btn:hover { background: #059669; transform: translateY(-1px); }
+  .run-btn:active { transform: none; }
+
+  /* ===== LOG PANEL ===== */
+  .log-panel { padding: 12px; }
+  .log-form { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
+  .log-input {
+    padding: 7px 10px; border: 1px solid var(--border); border-radius: 6px;
+    font-size: 12px; font-family: inherit; outline: none; background: #fafbfc;
+  }
+  .log-input:focus { border-color: var(--primary); background: white; }
+  .log-textarea {
+    resize: vertical; min-height: 64px;
+  }
+  .log-submit {
+    padding: 7px; background: var(--primary); color: white; border: none;
+    border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer;
+  }
+  .log-entries { display: flex; flex-direction: column; gap: 8px; }
+  .log-entry {
+    padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border);
+    background: #fafbfc; font-size: 12px;
+  }
+  .log-entry .log-meta {
+    display: flex; justify-content: space-between; color: var(--text-muted);
+    font-size: 11px; margin-bottom: 4px;
+  }
+  .log-entry .log-tag {
+    display: inline-block; padding: 1px 6px; border-radius: 3px;
+    font-size: 10px; font-weight: 700; margin-right: 4px;
+  }
+  .tag-insight { background: #dbeafe; color: #1d4ed8; }
+  .tag-issue { background: #fee2e2; color: #b91c1c; }
+  .tag-progress { background: #d1fae5; color: #065f46; }
+  .tag-question { background: #fef3c7; color: #92400e; }
+
+  /* ===== STEP VISUALIZER ===== */
+  .step-viz { padding: 12px; }
+  .step-viz-title { font-size: 12px; font-weight: 700; color: var(--text-muted); margin-bottom: 8px; }
+  .step-list { display: flex; flex-direction: column; gap: 4px; }
+  .step-item {
+    padding: 7px 10px; border-radius: 6px; border: 1px solid var(--border);
+    font-size: 12px; display: flex; align-items: center; gap: 8px;
+    background: #fafbfc; transition: all 0.3s;
+  }
+  .step-item.executing {
+    background: #eff6ff; border-color: var(--primary);
+    box-shadow: 0 0 0 2px rgba(37,99,235,0.15);
+  }
+  .step-item.done { background: #f0fdf4; border-color: var(--success); color: var(--text-muted); }
+  .step-num {
+    width: 20px; height: 20px; border-radius: 50%; background: var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; font-weight: 700; flex-shrink: 0;
+  }
+  .step-item.executing .step-num { background: var(--primary); color: white; }
+  .step-item.done .step-num { background: var(--success); color: white; }
+
+  /* ===== PROGRESS BAR ===== */
+  .progress-bar-wrap { padding: 10px 14px; background: #f8fafc; border-top: 1px solid var(--border); flex-shrink: 0; }
+  .progress-label { font-size: 11px; color: var(--text-muted); margin-bottom: 4px; display: flex; justify-content: space-between; }
+  .progress-track { height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+  .progress-fill { height: 100%; border-radius: 3px; background: linear-gradient(90deg, var(--primary), var(--accent)); transition: width 0.5s; }
+
+  /* ===== STATUS BAR ===== */
+  .statusbar {
+    height: 26px; background: var(--sidebar-bg); display: flex; align-items: center;
+    padding: 0 16px; gap: 16px; font-size: 11px; color: rgba(255,255,255,0.5);
+    flex-shrink: 0;
+  }
+  .statusbar .status-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--success); display: inline-block; margin-right: 4px; }
+  .statusbar .status-item { display: flex; align-items: center; }
+
+  /* ===== ONBOARDING MODAL ===== */
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000;
+    display: flex; align-items: center; justify-content: center;
+    backdrop-filter: blur(4px);
+  }
+  .modal-box {
+    background: white; border-radius: 16px; padding: 28px; width: 480px;
+    max-width: 90vw; box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+  }
+  .modal-title {
+    font-size: 22px; font-weight: 800; color: var(--text); margin-bottom: 6px;
+    background: linear-gradient(135deg, #7c3aed, #2563eb); -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .modal-sub { font-size: 14px; color: var(--text-muted); margin-bottom: 20px; line-height: 1.6; }
+  .feature-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+  .feature-card {
+    padding: 12px; border-radius: 10px; border: 1px solid var(--border);
+    background: #fafbfc;
+  }
+  .feature-card .icon { font-size: 22px; margin-bottom: 6px; }
+  .feature-card .f-title { font-size: 13px; font-weight: 700; margin-bottom: 2px; }
+  .feature-card .f-desc { font-size: 11px; color: var(--text-muted); line-height: 1.5; }
+  .modal-start {
+    width: 100%; padding: 12px; background: linear-gradient(135deg, #7c3aed, #2563eb);
+    color: white; border: none; border-radius: 10px; font-size: 15px; font-weight: 700;
+    cursor: pointer; transition: opacity 0.2s;
+  }
+  .modal-start:hover { opacity: 0.9; }
+
+  /* ===== TOAST ===== */
+  .toast-container { position: fixed; top: 60px; right: 16px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; }
+  .toast {
+    padding: 10px 16px; border-radius: 8px; font-size: 13px; font-weight: 500;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.15); display: flex; align-items: center; gap: 8px;
+    animation: slideIn 0.3s ease; max-width: 300px;
+  }
+  .toast.success { background: #065f46; color: white; }
+  .toast.warning { background: #92400e; color: white; }
+  .toast.error { background: #991b1b; color: white; }
+  .toast.info { background: #1d4ed8; color: white; }
+  @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+  /* ===== SCROLLBAR ===== */
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+  /* Pulse animation */
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+  .pulse { animation: pulse 2s infinite; }
+
+  /* CT progress */
+  .ct-dims { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 10px 14px; }
+  .ct-dim {
+    padding: 8px 10px; border-radius: 8px; background: #f8fafc; border: 1px solid var(--border);
+  }
+  .ct-dim .dim-label { font-size: 10px; font-weight: 700; color: var(--text-muted); margin-bottom: 4px; }
+  .ct-dim .dim-bar { height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
+  .ct-dim .dim-fill { height: 100%; border-radius: 2px; transition: width 0.8s ease; }
+</style>
+</head>
+<body>
+
+<!-- Toast container -->
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- Onboarding Modal -->
+<div class="modal-overlay" id="onboardModal">
+  <div class="modal-box">
+    <div class="modal-title">🎉 欢迎使用 BlocklyAI</div>
+    <div class="modal-sub">
+      基于计算思维培养研究设计的AI辅助图形化编程平台，
+      专为初中生打造，集成三大智能模块助力编程学习。
+    </div>
+    <div class="feature-grid">
+      <div class="feature-card">
+        <div class="icon">🧠</div>
+        <div class="f-title">智能意图识别</div>
+        <div class="f-desc">用中文描述想法，AI自动转换为积木程序</div>
+      </div>
+      <div class="feature-card">
+        <div class="icon">🔍</div>
+        <div class="f-title">逻辑漏洞检测</div>
+        <div class="f-desc">运行前自动扫描死循环、未初始化变量等常见错误</div>
+      </div>
+      <div class="feature-card">
+        <div class="icon">🚀</div>
+        <div class="f-title">自适应挑战</div>
+        <div class="f-desc">根据你的水平推荐差异化任务，持续激发潜能</div>
+      </div>
+      <div class="feature-card">
+        <div class="icon">📝</div>
+        <div class="f-title">数字学习日志</div>
+        <div class="f-desc">记录每节课的收获、困惑与成长轨迹</div>
+      </div>
+    </div>
+    <div style="font-size:12px;color:var(--text-muted);text-align:center;margin-bottom:14px;">
+      当前课题：<strong>第一轮 · 基础输入输出</strong> — 点亮创意的灯：LED与按钮
+    </div>
+    <button class="modal-start" onclick="closeModal()">🚀 开始编程探索</button>
+  </div>
+</div>
+
+<!-- Top Navigation -->
+<nav class="topnav">
+  <div class="logo">
+    <span>Blockly</span><span class="ai-badge">AI</span>
+  </div>
+  <div class="nav-tabs">
+    <div class="nav-tab active" onclick="switchTab(this,'workspace')">📐 编程工作区</div>
+    <div class="nav-tab" onclick="switchTab(this,'microbit')">🔌 micro:bit仿真</div>
+    <div class="nav-tab" onclick="switchTab(this,'progress')">📊 计算思维进度</div>
+  </div>
+  <div class="spacer"></div>
+  <div class="user-info">
+    <div class="avatar">学</div>
+    <span>实验组学生</span>
+    <span style="opacity:0.5;margin:0 4px;">|</span>
+    <span style="color:rgba(255,255,255,0.5);">第一轮迭代</span>
+  </div>
+</nav>
+
+<!-- Main Content -->
+<div class="main-layout">
+  <!-- Toolbox Sidebar -->
+  <div class="toolbox-sidebar" id="toolboxSidebar">
+    <div class="toolbox-header">🧩 积木分类</div>
+    <div class="toolbox-cats">
+      <div class="cat-item active" onclick="filterCat(this, 'all')">
+        <div class="cat-dot" style="background:#64748b"></div> 全部积木
+      </div>
+      <div class="cat-item" onclick="filterCat(this,'events')">
+        <div class="cat-dot" style="background:#f59e0b"></div> 事件控制
+      </div>
+      <div class="cat-item" onclick="filterCat(this,'display')">
+        <div class="cat-dot" style="background:#06b6d4"></div> LED显示
+      </div>
+      <div class="cat-item" onclick="filterCat(this,'logic')">
+        <div class="cat-dot" style="background:#8b5cf6"></div> 条件判断
+      </div>
+      <div class="cat-item" onclick="filterCat(this,'loops')">
+        <div class="cat-dot" style="background:#10b981"></div> 循环
+      </div>
+      <div class="cat-item" onclick="filterCat(this,'variables')">
+        <div class="cat-dot" style="background:#ef4444"></div> 变量
+      </div>
+      <div class="cat-item" onclick="filterCat(this,'math')">
+        <div class="cat-dot" style="background:#f97316"></div> 数学运算
+      </div>
+      <div class="cat-item" onclick="filterCat(this,'sensors')">
+        <div class="cat-dot" style="background:#0ea5e9"></div> 传感器
+      </div>
+      <div class="cat-item" onclick="filterCat(this,'functions')">
+        <div class="cat-dot" style="background:#ec4899"></div> 函数
+      </div>
+      <div class="cat-item" onclick="filterCat(this,'text')">
+        <div class="cat-dot" style="background:#84cc16"></div> 文字
+      </div>
+    </div>
+
+    <!-- CT维度进度（小型） -->
+    <div style="padding:10px 12px;border-top:1px solid var(--border);background:#f8fafc;">
+      <div style="font-size:11px;font-weight:700;color:var(--text-muted);margin-bottom:8px;">计算思维维度</div>
+      <div id="ctMini"></div>
+    </div>
+  </div>
+
+  <!-- Workspace Center -->
+  <div class="workspace-center">
+    <!-- Toolbar -->
+    <div class="workspace-toolbar">
+      <button class="btn btn-success" onclick="runCode()">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg> 运行仿真
+      </button>
+      <button class="btn btn-warning" onclick="detectErrors()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        检测漏洞
+      </button>
+      <button class="btn btn-primary" onclick="generateCode()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+        生成代码
+      </button>
+      <div class="toolbar-sep"></div>
+      <button class="btn btn-ghost" onclick="clearWorkspace()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/></svg>
+        清空
+      </button>
+      <button class="btn btn-ghost" onclick="loadExample()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        示例程序
+      </button>
+      <div class="toolbar-sep"></div>
+      <span class="toolbar-title" id="toolbarTitle">当前任务：点亮创意的灯 · 按下A显示爱心</span>
+    </div>
+
+    <!-- Blockly -->
+    <div id="blockly-container">
+      <div id="blocklyDiv"></div>
+    </div>
+  </div>
+
+  <!-- Right AI Panel -->
+  <div class="right-panel">
+    <div class="panel-tabs">
+      <div class="panel-tab active" onclick="switchPanel(this,'intent')">🧠 AI意图</div>
+      <div class="panel-tab" onclick="switchPanel(this,'errors')">🔍 漏洞</div>
+      <div class="panel-tab" onclick="switchPanel(this,'challenge')">🚀 挑战</div>
+      <div class="panel-tab" onclick="switchPanel(this,'log')">📝 日志</div>
+    </div>
+
+    <!-- AI Intent Panel -->
+    <div class="panel-content active" id="panel-intent" style="flex-direction:column;">
+      <div class="ai-section">
+        <div class="ai-section-title">
+          <span>智能意图识别</span>
+          <span class="badge">AI</span>
+        </div>
+        <textarea class="intent-textarea" id="intentInput"
+          placeholder="用中文描述你想实现的功能，例如：&#10;按下A键时，LED屏幕显示爱心图案..."></textarea>
+        <button class="intent-btn" onclick="processIntent()">
+          ✨ 生成积木方案
+        </button>
+      </div>
+
+      <div id="intentResults" style="flex:1;overflow-y:auto;"></div>
+
+      <div class="ai-section" style="margin-top:auto;">
+        <div class="ai-section-title">💡 快速示例</div>
+        <div style="display:flex;flex-wrap:wrap;gap:5px;">
+          <div class="ai-block-chip" style="background:#f59e0b;" onclick="quickIntent('按下A键显示爱心图案')">按A显爱心</div>
+          <div class="ai-block-chip" style="background:#06b6d4;" onclick="quickIntent('无限循环滚动显示Hello')">滚动文字</div>
+          <div class="ai-block-chip" style="background:#8b5cf6;" onclick="quickIntent('检测温度超过30度时显示警告')">温度报警</div>
+          <div class="ai-block-chip" style="background:#10b981;" onclick="quickIntent('按B键计数并显示数字')">按键计数</div>
+          <div class="ai-block-chip" style="background:#ef4444;" onclick="quickIntent('摇一摇时随机显示数字')">摇骰子</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Errors Panel -->
+    <div class="panel-content" id="panel-errors" style="flex-direction:column;">
+      <div style="padding:10px 14px;background:#fff5f5;border-bottom:1px solid #fca5a5;display:flex;align-items:center;gap:8px;">
+        <span style="font-size:13px;font-weight:700;color:#b91c1c;">🔍 逻辑漏洞检测</span>
+        <button class="btn btn-danger" style="margin-left:auto;padding:4px 10px;font-size:11px;" onclick="detectErrors()">重新扫描</button>
+      </div>
+      <div id="errorList" style="flex:1;overflow-y:auto;">
+        <div class="no-error">
+          <span class="icon">✅</span>
+          点击"检测漏洞"扫描你的积木程序
+        </div>
+      </div>
+    </div>
+
+    <!-- Challenge Panel -->
+    <div class="panel-content" id="panel-challenge" style="flex-direction:column;">
+      <div style="padding:10px 14px;background:#f0fdf4;border-bottom:1px solid #6ee7b7;display:flex;align-items:center;gap:8px;">
+        <span style="font-size:13px;font-weight:700;color:#065f46;">🚀 自适应挑战推荐</span>
+        <button class="btn btn-success" style="margin-left:auto;padding:4px 10px;font-size:11px;" onclick="refreshChallenges()">刷新</button>
+      </div>
+      <div class="challenge-list" id="challengeList">
+        <!-- populated by JS -->
+      </div>
+    </div>
+
+    <!-- Log Panel -->
+    <div class="panel-content" id="panel-log" style="flex-direction:column;">
+      <div style="padding:10px 14px;background:#f0f9ff;border-bottom:1px solid #bae6fd;">
+        <span style="font-size:13px;font-weight:700;color:#1d4ed8;">📝 数字学习日志</span>
+      </div>
+      <div style="padding:12px;border-bottom:1px solid var(--border);flex-shrink:0;">
+        <div class="log-form">
+          <select class="log-input" id="logTag" style="height:32px;">
+            <option value="progress">🌟 学习进展</option>
+            <option value="insight">💡 关键发现</option>
+            <option value="issue">❗ 遇到困难</option>
+            <option value="question">❓ 想弄清楚</option>
+          </select>
+          <textarea class="log-input log-textarea" id="logText" placeholder="记录今天用AI功能的心得、遇到的困难..."></textarea>
+          <button class="log-submit" onclick="addLog()">✏️ 记录</button>
+        </div>
+      </div>
+      <div id="logEntries" style="flex:1;overflow-y:auto;padding:10px 12px;display:flex;flex-direction:column;gap:6px;">
+        <!-- log entries -->
+      </div>
+    </div>
+
+    <!-- Progress bar at bottom -->
+    <div class="progress-bar-wrap">
+      <div class="progress-label">
+        <span>本轮进度</span>
+        <span id="progressPct">42%</span>
+      </div>
+      <div class="progress-track">
+        <div class="progress-fill" id="progressFill" style="width:42%"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Status Bar -->
+<div class="statusbar">
+  <div class="status-item"><span class="status-dot"></span> 平台就绪</div>
+  <div class="status-item" id="blockCount">积木数: 0</div>
+  <div class="status-item" id="statusMsg">🤖 AI 待命中</div>
+  <div class="status-item" style="margin-left:auto">micro:bit 仿真模式</div>
+  <div class="status-item">BlocklyAI v1.0</div>
+</div>
+
+<!-- Blockly Toolbox XML -->
+<xml id="toolbox" style="display:none">
+  <category name="🔔 事件" colour="#F59E0B">
+    <block type="microbit_on_button_press">
+      <field name="BUTTON">A</field>
+    </block>
+    <block type="microbit_on_start"></block>
+    <block type="microbit_forever"></block>
+    <block type="microbit_on_shake"></block>
+  </category>
+  <category name="💡 LED显示" colour="#06B6D4">
+    <block type="microbit_show_string">
+      <value name="TEXT">
+        <block type="text"><field name="TEXT">Hello!</field></block>
+      </value>
+    </block>
+    <block type="microbit_show_number">
+      <value name="NUM">
+        <block type="math_number"><field name="NUM">0</field></block>
+      </value>
+    </block>
+    <block type="microbit_show_icon">
+      <field name="ICON">HEART</field>
+    </block>
+    <block type="microbit_clear_display"></block>
+    <block type="microbit_set_pixel">
+      <value name="X"><block type="math_number"><field name="NUM">2</field></block></value>
+      <value name="Y"><block type="math_number"><field name="NUM">2</field></block></value>
+      <value name="BRIGHT"><block type="math_number"><field name="NUM">9</field></block></value>
+    </block>
+    <block type="microbit_scroll_string">
+      <value name="TEXT">
+        <block type="text"><field name="TEXT">BlocklyAI</field></block>
+      </value>
+    </block>
+  </category>
+  <category name="🔀 条件判断" colour="#8B5CF6">
+    <block type="controls_if"></block>
+    <block type="controls_if">
+      <mutation else="1"></mutation>
+    </block>
+    <block type="logic_compare"></block>
+    <block type="logic_operation"></block>
+    <block type="logic_negate"></block>
+    <block type="logic_boolean"></block>
+  </category>
+  <category name="🔄 循环" colour="#10B981">
+    <block type="controls_repeat_ext">
+      <value name="TIMES"><block type="math_number"><field name="NUM">10</field></block></value>
+    </block>
+    <block type="controls_whileUntil"></block>
+    <block type="controls_for">
+      <value name="FROM"><block type="math_number"><field name="NUM">1</field></block></value>
+      <value name="TO"><block type="math_number"><field name="NUM">10</field></block></value>
+      <value name="BY"><block type="math_number"><field name="NUM">1</field></block></value>
+    </block>
+    <block type="controls_forEach"></block>
+    <block type="microbit_pause">
+      <value name="MS"><block type="math_number"><field name="NUM">1000</field></block></value>
+    </block>
+  </category>
+  <category name="📦 变量" colour="#EF4444" custom="VARIABLE"></category>
+  <category name="➕ 数学" colour="#F97316">
+    <block type="math_number"></block>
+    <block type="math_arithmetic"></block>
+    <block type="math_random_int">
+      <value name="FROM"><block type="math_number"><field name="NUM">1</field></block></value>
+      <value name="TO"><block type="math_number"><field name="NUM">6</field></block></value>
+    </block>
+    <block type="math_modulo"></block>
+    <block type="math_constrain"></block>
+  </category>
+  <category name="📡 传感器" colour="#0EA5E9">
+    <block type="microbit_temperature"></block>
+    <block type="microbit_light_level"></block>
+    <block type="microbit_compass_heading"></block>
+    <block type="microbit_acceleration">
+      <field name="AXIS">x</field>
+    </block>
+    <block type="microbit_is_button_pressed">
+      <field name="BUTTON">A</field>
+    </block>
+  </category>
+  <category name="🔧 函数" colour="#EC4899" custom="PROCEDURE"></category>
+  <category name="📝 文字" colour="#84CC16">
+    <block type="text"></block>
+    <block type="text_join"></block>
+    <block type="text_length"></block>
+    <block type="text_print"></block>
+  </category>
+</xml>
+
+<script>
+// =================== BLOCKLY SETUP ===================
+let workspace;
+
+// Define custom micro:bit blocks
+function defineMicrobitBlocks() {
+  // on_button_press
+  Blockly.Blocks['microbit_on_button_press'] = {
+    init: function() {
+      this.appendDummyInput()
+        .appendField('当按钮')
+        .appendField(new Blockly.FieldDropdown([['A','A'],['B','B'],['A+B','AB']]), 'BUTTON')
+        .appendField('被按下时');
+      this.appendStatementInput('DO').setCheck(null);
+      this.setColour('#F59E0B');
+      this.setTooltip('当指定按钮被按下时执行内部积木');
+    }
+  };
+  // on_start
+  Blockly.Blocks['microbit_on_start'] = {
+    init: function() {
+      this.appendDummyInput().appendField('🚀 程序启动时');
+      this.appendStatementInput('DO').setCheck(null);
+      this.setColour('#F59E0B');
+      this.setTooltip('程序开始运行时执行一次');
+    }
+  };
+  // forever
+  Blockly.Blocks['microbit_forever'] = {
+    init: function() {
+      this.appendDummyInput().appendField('🔁 无限循环');
+      this.appendStatementInput('DO').setCheck(null);
+      this.setColour('#10B981');
+      this.setTooltip('永远重复执行内部积木');
+    }
+  };
+  // on_shake
+  Blockly.Blocks['microbit_on_shake'] = {
+    init: function() {
+      this.appendDummyInput().appendField('🤝 当摇晃时');
+      this.appendStatementInput('DO').setCheck(null);
+      this.setColour('#F59E0B');
+    }
+  };
+  // show_string
+  Blockly.Blocks['microbit_show_string'] = {
+    init: function() {
+      this.appendValueInput('TEXT').setCheck('String').appendField('📺 显示文字');
+      this.setPreviousStatement(true, null);
+      this.setNextStatement(true, null);
+      this.setColour('#06B6D4');
+      this.setTooltip('在LED屏幕上滚动显示文字');
+    }
+  };
+  // show_number
+  Blockly.Blocks['microbit_show_number'] = {
+    init: function() {
+      this.appendValueInput('NUM').setCheck('Number').appendField('🔢 显示数字');
+      this.setPreviousStatement(true, null);
+      this.setNextStatement(true, null);
+      this.setColour('#06B6D4');
+    }
+  };
+  // show_icon
+  Blockly.Blocks['microbit_show_icon'] = {
+    init: function() {
+      this.appendDummyInput()
+        .appendField('💡 显示图标')
+        .appendField(new Blockly.FieldDropdown([
+          ['❤️ 爱心','HEART'],['😊 笑脸','HAPPY'],['😢 伤心','SAD'],
+          ['⭐ 星星','STAR'],['✅ 对勾','YES'],['❌ 错误','NO'],
+          ['🔼 上箭头','ARROW_N'],['🔽 下箭头','ARROW_S'],
+        ]), 'ICON');
+      this.setPreviousStatement(true, null);
+      this.setNextStatement(true, null);
+      this.setColour('#06B6D4');
+    }
+  };
+  // clear_display
+  Blockly.Blocks['microbit_clear_display'] = {
+    init: function() {
+      this.appendDummyInput().appendField('🔲 清空屏幕');
+      this.setPreviousStatement(true, null);
+      this.setNextStatement(true, null);
+      this.setColour('#06B6D4');
+    }
+  };
+  // set_pixel
+  Blockly.Blocks['microbit_set_pixel'] = {
+    init: function() {
+      this.appendValueInput('X').setCheck('Number').appendField('💎 设置像素 X');
+      this.appendValueInput('Y').setCheck('Number').appendField('Y');
+      this.appendValueInput('BRIGHT').setCheck('Number').appendField('亮度');
+      this.setInputsInline(true);
+      this.setPreviousStatement(true, null);
+      this.setNextStatement(true, null);
+      this.setColour('#06B6D4');
+    }
+  };
+  // scroll_string
+  Blockly.Blocks['microbit_scroll_string'] = {
+    init: function() {
+      this.appendValueInput('TEXT').setCheck('String').appendField('📜 滚动显示');
+      this.setPreviousStatement(true, null);
+      this.setNextStatement(true, null);
+      this.setColour('#06B6D4');
+    }
+  };
+  // pause
+  Blockly.Blocks['microbit_pause'] = {
+    init: function() {
+      this.appendValueInput('MS').setCheck('Number').appendField('⏱️ 等待');
+      this.appendDummyInput().appendField('毫秒');
+      this.setInputsInline(true);
+      this.setPreviousStatement(true, null);
+      this.setNextStatement(true, null);
+      this.setColour('#10B981');
+    }
+  };
+  // temperature
+  Blockly.Blocks['microbit_temperature'] = {
+    init: function() {
+      this.appendDummyInput().appendField('🌡️ 当前温度(°C)');
+      this.setOutput(true, 'Number');
+      this.setColour('#0EA5E9');
+    }
+  };
+  // light_level
+  Blockly.Blocks['microbit_light_level'] = {
+    init: function() {
+      this.appendDummyInput().appendField('☀️ 光线强度(0-255)');
+      this.setOutput(true, 'Number');
+      this.setColour('#0EA5E9');
+    }
+  };
+  // compass
+  Blockly.Blocks['microbit_compass_heading'] = {
+    init: function() {
+      this.appendDummyInput().appendField('🧭 指南针方向(°)');
+      this.setOutput(true, 'Number');
+      this.setColour('#0EA5E9');
+    }
+  };
+  // acceleration
+  Blockly.Blocks['microbit_acceleration'] = {
+    init: function() {
+      this.appendDummyInput()
+        .appendField('📐 加速度')
+        .appendField(new Blockly.FieldDropdown([['X轴','x'],['Y轴','y'],['Z轴','z']]), 'AXIS');
+      this.setOutput(true, 'Number');
+      this.setColour('#0EA5E9');
+    }
+  };
+  // is_button_pressed
+  Blockly.Blocks['microbit_is_button_pressed'] = {
+    init: function() {
+      this.appendDummyInput()
+        .appendField('🔘 按钮')
+        .appendField(new Blockly.FieldDropdown([['A','A'],['B','B']]), 'BUTTON')
+        .appendField('被按下？');
+      this.setOutput(true, 'Boolean');
+      this.setColour('#0EA5E9');
+    }
+  };
+
+  // Code generators
+  const gen = Blockly.Python;
+  gen.forBlock['microbit_on_button_press'] = function(b) {
+    const btn = b.getFieldValue('BUTTON');
+    const body = gen.statementToCode(b,'DO') || '    pass\n';
+    return `# 当按钮${btn}按下\ndef on_button_${btn.toLowerCase()}():\n${body}\nbutton_${btn.toLowerCase()}.was_pressed()\n`;
+  };
+  gen.forBlock['microbit_on_start'] = function(b) {
+    return gen.statementToCode(b,'DO') || '';
+  };
+  gen.forBlock['microbit_forever'] = function(b) {
+    const body = gen.statementToCode(b,'DO') || '    pass\n';
+    return `while True:\n${body}`;
+  };
+  gen.forBlock['microbit_on_shake'] = function(b) {
+    const body = gen.statementToCode(b,'DO') || '    pass\n';
+    return `# 摇晃事件\nif accelerometer.was_gesture("shake"):\n${body}`;
+  };
+  gen.forBlock['microbit_show_string'] = function(b) {
+    const txt = gen.valueToCode(b,'TEXT',0) || "''";
+    return `display.scroll(${txt})\n`;
+  };
+  gen.forBlock['microbit_show_number'] = function(b) {
+    const n = gen.valueToCode(b,'NUM',0) || '0';
+    return `display.show(str(${n}))\n`;
+  };
+  gen.forBlock['microbit_show_icon'] = function(b) {
+    const icon = b.getFieldValue('ICON');
+    const iconMap = {HEART:'Image.HEART',HAPPY:'Image.HAPPY',SAD:'Image.SAD',
+      STAR:'Image.STICKFIGURE',YES:'Image.YES',NO:'Image.NO',
+      ARROW_N:'Image.ARROW_N',ARROW_S:'Image.ARROW_S'};
+    return `display.show(${iconMap[icon]||'Image.HEART'})\n`;
+  };
+  gen.forBlock['microbit_clear_display'] = function() { return 'display.clear()\n'; };
+  gen.forBlock['microbit_set_pixel'] = function(b) {
+    const x = gen.valueToCode(b,'X',0)||'0', y = gen.valueToCode(b,'Y',0)||'0',
+      br = gen.valueToCode(b,'BRIGHT',0)||'9';
+    return `display.set_pixel(${x},${y},${br})\n`;
+  };
+  gen.forBlock['microbit_scroll_string'] = function(b) {
+    const txt = gen.valueToCode(b,'TEXT',0)||"''";
+    return `display.scroll(${txt})\n`;
+  };
+  gen.forBlock['microbit_pause'] = function(b) {
+    const ms = gen.valueToCode(b,'MS',0)||'1000';
+    return `sleep(${ms})\n`;
+  };
+  gen.forBlock['microbit_temperature'] = function() { return ['temperature()',0]; };
+  gen.forBlock['microbit_light_level'] = function() { return ['display.read_light_level()',0]; };
+  gen.forBlock['microbit_compass_heading'] = function() { return ['compass.heading()',0]; };
+  gen.forBlock['microbit_acceleration'] = function(b) {
+    const ax = b.getFieldValue('AXIS');
+    return [`accelerometer.get_${ax}()`,0];
+  };
+  gen.forBlock['microbit_is_button_pressed'] = function(b) {
+    const btn = b.getFieldValue('BUTTON').toLowerCase();
+    return [`button_${btn}.is_pressed()`,0];
+  };
+}
+
+function initBlockly() {
+  defineMicrobitBlocks();
+  workspace = Blockly.inject('blocklyDiv', {
+    toolbox: document.getElementById('toolbox'),
+    grid: { spacing: 20, length: 3, colour: '#e2e8f0', snap: true },
+    zoom: { controls: true, wheel: true, startScale: 1.0, maxScale: 3, minScale: 0.3, scaleSpeed: 1.2 },
+    trashcan: true,
+    theme: Blockly.Theme.defineTheme('blocklyai', {
+      base: Blockly.Themes.Classic,
+      componentStyles: {
+        workspaceBackgroundColour: '#f8fafc',
+        toolboxBackgroundColour: '#ffffff',
+        flyoutBackgroundColour: '#f1f5f9',
+        scrollbarColour: '#94a3b8',
+      }
+    }),
+    sounds: false,
+  });
+
+  workspace.addChangeListener(() => {
+    const blocks = workspace.getAllBlocks(false);
+    document.getElementById('blockCount').textContent = `积木数: ${blocks.length}`;
+    updateProgress();
+  });
+
+  // Load default example
+  loadExample();
+}
+
+// =================== MICROBIT SIMULATOR ===================
+const LED_PATTERNS = {
+  HEART: [[0,1,0,1,0],[1,1,1,1,1],[1,1,1,1,1],[0,1,1,1,0],[0,0,1,0,0]],
+  HAPPY: [[0,1,0,1,0],[0,0,0,0,0],[1,0,0,0,1],[0,1,1,1,0],[0,0,0,0,0]],
+  SAD:   [[0,1,0,1,0],[0,0,0,0,0],[0,0,0,0,0],[0,1,1,1,0],[1,0,0,0,1]],
+  STAR:  [[0,0,1,0,0],[0,1,1,1,0],[1,1,1,1,1],[0,1,1,1,0],[0,0,1,0,0]],
+  YES:   [[0,0,0,0,1],[0,0,0,1,0],[1,0,1,0,0],[0,1,0,0,0],[0,0,0,0,0]],
+  NO:    [[1,0,0,0,1],[0,1,0,1,0],[0,0,1,0,0],[0,1,0,1,0],[1,0,0,0,1]],
+  CLEAR: [[0,0,0,0,0],[0,0,0,0,0],[0,0,0,0,0],[0,0,0,0,0],[0,0,0,0,0]],
+};
+
+let ledState = Array(5).fill(null).map(()=>Array(5).fill(0));
+let microbitPanel = null;
+
+function buildMicrobitPanel() {
+  const screen = document.getElementById('mbScreen');
+  if (!screen) return;
+  screen.innerHTML = '';
+  for (let r=0;r<5;r++) for (let c=0;c<5;c++) {
+    const led = document.createElement('div');
+    led.className = 'led' + (ledState[r][c]?' on':'');
+    led.id = `led-${r}-${c}`;
+    screen.appendChild(led);
+  }
+}
+
+function setLEDPattern(pattern) {
+  ledState = pattern.map(row=>[...row]);
+  buildMicrobitPanel();
+}
+
+function scrollText(text) {
+  const chars = text.split('');
+  let i = 0;
+  const interval = setInterval(() => {
+    const ch = chars[i % chars.length];
+    showChar(ch);
+    i++;
+    if (i >= chars.length * 2) clearInterval(interval);
+  }, 400);
+}
+
+function showChar(ch) {
+  const charMap = {
+    'H':[[1,0,0,0,1],[1,0,0,0,1],[1,1,1,1,1],[1,0,0,0,1],[1,0,0,0,1]],
+    'e':[[0,1,1,1,0],[1,0,0,0,0],[1,1,1,1,0],[1,0,0,0,0],[0,1,1,1,0]],
+    'l':[[0,1,1,0,0],[0,0,1,0,0],[0,0,1,0,0],[0,0,1,0,0],[0,1,1,1,0]],
+    'o':[[0,1,1,1,0],[1,0,0,0,1],[1,0,0,0,1],[1,0,0,0,1],[0,1,1,1,0]],
+    ' ':[[0,0,0,0,0],[0,0,0,0,0],[0,0,0,0,0],[0,0,0,0,0],[0,0,0,0,0]],
+  };
+  const p = charMap[ch] || charMap[' '];
+  setLEDPattern(p);
+}
+
+// =================== RUN SIMULATION ===================
+function runCode() {
+  const blocks = workspace.getAllBlocks(false);
+  if (blocks.length === 0) {
+    showToast('请先拖入积木再运行！', 'warning');
+    return;
+  }
+
+  const code = Blockly.Python.workspaceToCode(workspace);
+  document.getElementById('statusMsg').textContent = '▶ 程序运行中...';
+
+  // Parse blocks to simulate
+  let iconShown = 'CLEAR';
+  blocks.forEach(b => {
+    if (b.type === 'microbit_show_icon') {
+      iconShown = b.getFieldValue('ICON');
+    }
+  });
+
+  const hasForever = blocks.some(b=>b.type==='microbit_forever');
+  const hasOnButton = blocks.some(b=>b.type==='microbit_on_button_press');
+  const hasShowString = blocks.some(b=>b.type==='microbit_show_string');
+
+  if (iconShown !== 'CLEAR') {
+    setLEDPattern(LED_PATTERNS[iconShown] || LED_PATTERNS.CLEAR);
+    showToast(`✅ micro:bit 显示 ${iconShown === 'HEART' ? '❤️ 爱心' : iconShown}`, 'success');
+  } else if (hasShowString) {
+    scrollText('Hi');
+    showToast('✅ 文字滚动中...', 'success');
+  } else {
+    showToast('✅ 程序运行完成！', 'success');
+  }
+
+  // Update code preview
+  updateCodePreview(code);
+  document.getElementById('statusMsg').textContent = '✅ 运行完成';
+
+  // Run step visualizer
+  runStepVisualizer(blocks);
+
+  // Update progress
+  updateProgress(+10);
+  updateCTDimensions();
+
+  setTimeout(() => {
+    document.getElementById('statusMsg').textContent = '🤖 AI 待命中';
+  }, 3000);
+}
+
+function updateCodePreview(code) {
+  const el = document.getElementById('codePreview');
+  if (el) {
+    el.textContent = `from microbit import *\n\n${code || '# 暂无代码\n'}`;
+  }
+}
+
+// =================== ERROR DETECTION ===================
+const ERRORS = [
+  {
+    check: (ws) => ws.getAllBlocks().some(b=>b.type==='microbit_forever') &&
+      !ws.getAllBlocks().some(b=>b.type==='microbit_pause'),
+    title: '⚠️ 可能的死循环',
+    desc: '检测到无限循环但没有等待积木，可能导致程序卡死或屏幕刷新过快。',
+    fix: '在 "无限循环" 内加入 "等待 500 毫秒" 积木',
+    type: 'warning'
+  },
+  {
+    check: (ws) => {
+      const vars = ws.getAllVariables();
+      if (!vars.length) return false;
+      const usedInCode = Blockly.Python.workspaceToCode(ws);
+      return vars.some(v => (usedInCode.match(new RegExp(v.name,'g'))||[]).length <= 1);
+    },
+    title: '❗ 变量可能未使用',
+    desc: '发现已声明的变量在程序中只出现了一次（仅赋值未读取），可能导致逻辑不完整。',
+    fix: '检查变量是否在条件判断或显示积木中被正确读取',
+    type: 'error'
+  },
+  {
+    check: (ws) => {
+      const blocks = ws.getAllBlocks();
+      const temp = blocks.some(b=>b.type==='microbit_temperature');
+      const hasCompare = blocks.some(b=>b.type==='logic_compare');
+      return temp && !hasCompare;
+    },
+    title: '💡 传感器值未判断',
+    desc: '使用了温度传感器但没有配合条件判断积木，传感器值可能没有实际用途。',
+    fix: '在温度积木外包裹"如果...否则"积木，设置温度阈值',
+    type: 'info'
+  },
+  {
+    check: (ws) => {
+      const blocks = ws.getAllBlocks();
+      const hasDisplay = blocks.some(b=>['microbit_show_string','microbit_show_icon','microbit_show_number'].includes(b.type));
+      const hasClear = blocks.some(b=>b.type==='microbit_clear_display');
+      const hasMultiBtn = blocks.filter(b=>b.type==='microbit_on_button_press').length >= 2;
+      return hasMultiBtn && hasDisplay && !hasClear;
+    },
+    title: '🔲 切换显示前未清屏',
+    desc: '检测到多个按钮事件都会显示内容，但缺少"清空屏幕"积木，可能导致显示混乱。',
+    fix: '在每个显示积木前加入"清空屏幕"积木',
+    type: 'warning'
+  }
+];
+
+function detectErrors() {
+  const found = ERRORS.filter(e => e.check(workspace));
+  const container = document.getElementById('errorList');
+  switchPanel(document.querySelector('.panel-tab:nth-child(2)'), 'errors');
+
+  if (found.length === 0) {
+    container.innerHTML = `<div class="no-error"><span class="icon">✅</span>太棒了！未发现逻辑漏洞<br><span style="font-size:11px;color:var(--text-muted)">代码逻辑结构良好</span></div>`;
+    showToast('✅ 扫描完成：无漏洞发现', 'success');
+    document.getElementById('statusMsg').textContent = '✅ 无漏洞';
+    return;
+  }
+
+  container.innerHTML = '<div class="error-list" style="padding:0">' +
+    found.map(e => `
+      <div class="error-item">
+        <div class="error-icon">${e.type==='error'?'❗':e.type==='warning'?'⚠️':'💡'}</div>
+        <div>
+          <div style="font-weight:700;color:${e.type==='error'?'#b91c1c':e.type==='warning'?'#92400e':'#1d4ed8'}">${e.title}</div>
+          <div style="color:var(--text-muted);margin-top:2px">${e.desc}</div>
+          <div style="margin-top:6px;padding:5px 8px;background:#fef9e7;border-radius:4px;border-left:3px solid #f59e0b;font-size:11px;color:#92400e">
+            💡 修改建议：${e.fix}
+          </div>
+        </div>
+      </div>
+    `).join('') + '</div>';
+
+  showToast(`🔍 发现 ${found.length} 个逻辑问题`, 'warning');
+  document.getElementById('statusMsg').textContent = `⚠️ ${found.length} 个问题`;
+}
+
+// =================== CODE GENERATION ===================
+function generateCode() {
+  const code = Blockly.Python.workspaceToCode(workspace);
+  const fullCode = `from microbit import *\n\n${code || '# 请先拖入积木\n'}`;
+  updateCodePreview(fullCode);
+  switchPanel(null, 'microbit', true);
+  showToast('💻 Python代码已生成！', 'info');
+}
+
+// =================== AI INTENT ===================
+const INTENT_LIBRARY = [
+  {
+    keywords: ['按下a','按a','按钮a','a键'],
+    blocks: ['🔔 当按钮A按下时', '💡 显示图标(爱心)'],
+    code: `on_button_a → show_icon(HEART)`,
+    logic: '监听A按钮事件，触发后在LED屏幕显示爱心图案。'
+  },
+  {
+    keywords: ['按下b','按b','按钮b','b键'],
+    blocks: ['🔔 当按钮B按下时', '💡 显示图标(笑脸)'],
+    code: `on_button_b → show_icon(HAPPY)`,
+    logic: '监听B按钮事件，触发后在LED屏幕显示笑脸图案。'
+  },
+  {
+    keywords: ['循环','滚动','hello','无限','不断'],
+    blocks: ['🔁 无限循环', '📺 滚动显示(文字)', '⏱️ 等待(500ms)'],
+    code: `while True: display.scroll(text); sleep(500)`,
+    logic: '无限循环内滚动显示文字，每次显示后等待500毫秒避免刷新过快。'
+  },
+  {
+    keywords: ['温度','超过','报警','热','cold','warm'],
+    blocks: ['🌡️ 当前温度', '🔀 如果 > 30', '💡 显示图标(警告)', '📺 显示数字'],
+    code: `if temperature() > 30: display.show(">30°C")`,
+    logic: '读取温度传感器数值，当超过阈值时触发警告显示。需要先理解条件判断逻辑。'
+  },
+  {
+    keywords: ['计数','计次','按几次','次数','多少次'],
+    blocks: ['📦 变量 count = 0', '🔔 当按钮B按下时', '📦 count = count + 1', '🔢 显示数字(count)'],
+    code: `count = 0; on_button_b: count+=1; show(count)`,
+    logic: '用变量记录按键次数，每次按B键变量加1并显示在屏幕上。'
+  },
+  {
+    keywords: ['摇','骰子','随机','随机数'],
+    blocks: ['🤝 当摇晃时', '📐 随机数(1-6)', '🔢 显示数字'],
+    code: `on_shake: display.show(random(1,6))`,
+    logic: '摇晃micro:bit时生成1到6的随机数并显示，模拟骰子效果。'
+  },
+  {
+    keywords: ['夜灯','光线','自适应','亮度','暗'],
+    blocks: ['🔁 无限循环', '☀️ 光线强度', '🔀 如果 < 100', '💡 显示图标(星星)'],
+    code: `while True: if read_light_level()<100: show(STAR)`,
+    logic: '持续检测环境光线，光线暗时点亮LED图案作为夜灯。'
+  }
+];
+
+function processIntent() {
+  const input = document.getElementById('intentInput').value.trim();
+  if (!input) { showToast('请先输入你的编程想法！', 'warning'); return; }
+  quickIntent(input);
+}
+
+function quickIntent(text) {
+  document.getElementById('intentInput').value = text;
+  document.getElementById('statusMsg').textContent = '🧠 AI 分析中...';
+
+  const lower = text.toLowerCase();
+  const match = INTENT_LIBRARY.find(item =>
+    item.keywords.some(k => lower.includes(k))
+  ) || {
+    blocks: ['🔔 当按钮A按下时', '💡 显示图标(爱心)', '⏱️ 等待(1000ms)'],
+    code: `on_event → action → wait`,
+    logic: `根据你的描述"${text}"，推荐先设置一个事件触发器，再执行对应的显示动作。`
+  };
+
+  const results = document.getElementById('intentResults');
+  const colors = ['#f59e0b','#06b6d4','#8b5cf6','#10b981','#ef4444'];
+
+  results.innerHTML = `
+    <div class="ai-result-card intent" style="margin:8px 14px;">
+      <div class="ai-result-title"><span class="icon">🧩</span> 推荐积木方案</div>
+      <div style="margin-bottom:8px;">
+        ${match.blocks.map((b,i)=>`<span class="ai-block-chip" style="background:${colors[i%colors.length]}">${b}</span>`).join('')}
+      </div>
+      <div style="font-size:11px;color:#6d28d9;font-weight:600;margin-bottom:4px;">
+        📐 逻辑解释（请理解后再使用）：
+      </div>
+      <div style="font-size:12px;color:#4c1d95;line-height:1.6;background:#faf5ff;padding:6px 8px;border-radius:6px;">
+        ${match.logic}
+      </div>
+    </div>
+    <div class="ai-result-card info" style="margin:4px 14px 8px;">
+      <div class="ai-result-title"><span class="icon">💬</span> 思考提示</div>
+      <div style="color:#1d4ed8;">
+        在使用上面的积木前，请先思考：<br>
+        ① 这个功能需要几个步骤？<br>
+        ② 哪个积木是"触发条件"，哪个是"执行动作"？<br>
+        ③ 你能修改至少一个参数让程序变得不一样吗？
+      </div>
+    </div>
+  `;
+
+  document.getElementById('statusMsg').textContent = '✨ 积木方案已生成';
+  switchPanel(document.querySelector('.panel-tab:nth-child(1)'), 'intent');
+  showToast('✨ AI已生成积木方案，请先理解逻辑再使用！', 'info');
+
+  // Auto-add a sample block to workspace
+  setTimeout(() => {
+    addSampleBlock(text);
+  }, 500);
+}
+
+function addSampleBlock(text) {
+  const lower = text.toLowerCase();
+  let xml = '';
+
+  if (lower.includes('按下a') || lower.includes('按a') || lower.includes('爱心')) {
+    xml = `<xml><block type="microbit_on_button_press" x="50" y="50">
+      <field name="BUTTON">A</field>
+      <statement name="DO">
+        <block type="microbit_show_icon">
+          <field name="ICON">HEART</field>
+          <next><block type="microbit_pause"><value name="MS"><block type="math_number"><field name="NUM">1000</field></block></value></block></next>
+        </block>
+      </statement>
+    </block></xml>`;
+  } else if (lower.includes('计数') || lower.includes('计次')) {
+    xml = `<xml>
+      <block type="microbit_on_button_press" x="50" y="50">
+        <field name="BUTTON">B</field>
+        <statement name="DO">
+          <block type="microbit_show_number">
+            <value name="NUM"><block type="math_number"><field name="NUM">1</field></block></value>
+          </block>
+        </statement>
+      </block>
+    </xml>`;
+  } else if (lower.includes('循环') || lower.includes('滚动')) {
+    xml = `<xml><block type="microbit_forever" x="50" y="50">
+      <statement name="DO">
+        <block type="microbit_show_string">
+          <value name="TEXT"><block type="text"><field name="TEXT">Hello!</field></block></value>
+          <next><block type="microbit_pause"><value name="MS"><block type="math_number"><field name="NUM">500</field></block></value></block></next>
+        </block>
+      </statement>
+    </block></xml>`;
+  }
+
+  if (xml) {
+    try {
+      const dom = Blockly.utils.xml.textToDom(xml);
+      Blockly.Xml.appendDomToWorkspace(dom, workspace);
+    } catch(e) {}
+  }
+}
+
+// =================== CHALLENGES ===================
+const ALL_CHALLENGES = [
+  { level:'easy', title:'🌟 基础：双按钮问候', desc:'按A显示"HI"，按B显示"BYE"，两个按钮分别控制不同显示', ct:'分解、算法' },
+  { level:'easy', title:'🌟 基础：爱心闪烁', desc:'让爱心图案每隔500ms交替显示和清空，实现闪烁效果', ct:'循环、算法' },
+  { level:'medium', title:'⚡ 进阶：温度计', desc:'实时显示温度，超过28°C显示警告图标，低于18°C显示雪花', ct:'条件判断、传感器' },
+  { level:'medium', title:'⚡ 进阶：计步器优化', desc:'用函数封装"加一步"逻辑，减少重复积木，思考何时用函数', ct:'函数、泛化' },
+  { level:'medium', title:'⚡ 进阶：不用延时的闪烁', desc:'尝试不使用"等待"积木，用其他方式实现LED交替效果', ct:'算法优化、评估' },
+  { level:'hard', title:'🔥 挑战：智能夜灯', desc:'光线弱时显示满屏亮点，光线强时清空；加入摇晃重置功能', ct:'多传感器、综合' },
+  { level:'hard', title:'🔥 挑战：摇骰子2.0', desc:'摇晃显示随机数，按A加1分，按B减1分，显示总分', ct:'变量、综合' },
+  { level:'hard', title:'🔥 挑战：函数重构', desc:'将你现有程序中所有重复超过2次的积木组合封装为函数', ct:'函数、抽象' },
+];
+
+let shownChallenges = [];
+
+function refreshChallenges() {
+  const blocks = workspace.getAllBlocks();
+  const count = blocks.length;
+
+  // Adaptive: more blocks = harder challenges shown
+  let pool;
+  if (count < 5) pool = ALL_CHALLENGES.filter(c=>c.level==='easy');
+  else if (count < 12) pool = ALL_CHALLENGES.filter(c=>c.level!=='hard');
+  else pool = ALL_CHALLENGES;
+
+  // Shuffle
+  pool = pool.sort(()=>Math.random()-0.5).slice(0,3);
+  shownChallenges = pool;
+
+  const container = document.getElementById('challengeList');
+  container.innerHTML = pool.map((c,i) => `
+    <div class="challenge-card" onclick="acceptChallenge(${i})">
+      <div class="level level-${c.level}">${c.level==='easy'?'⭐ 入门':c.level==='medium'?'⚡ 进阶':'🔥 挑战'}</div>
+      <div class="challenge-title">${c.title}</div>
+      <div class="challenge-desc">${c.desc}</div>
+      <div style="margin-top:6px;font-size:10px;color:var(--text-muted)">🧠 培养维度：${c.ct}</div>
+    </div>
+  `).join('');
+}
+
+function acceptChallenge(i) {
+  const c = shownChallenges[i];
+  document.getElementById('toolbarTitle').textContent = `当前挑战：${c.title.replace(/[🌟⚡🔥]/g,'').trim()}`;
+  showToast(`🚀 已接受挑战：${c.title}`, 'success');
+  updateProgress(+15);
+}
+
+// =================== LEARNING LOG ===================
+let logs = [
+  { tag:'insight', text:'AI意图识别帮我快速生成了第一个可运行程序！但我发现我不太理解积木的逻辑...', time:'09:15' },
+  { tag:'issue', text:'循环积木里忘记加等待，AI漏洞检测提醒了我"可能死循环"', time:'09:32' },
+];
+
+function addLog() {
+  const tag = document.getElementById('logTag').value;
+  const text = document.getElementById('logText').value.trim();
+  if (!text) { showToast('请输入日志内容！', 'warning'); return; }
+
+  const now = new Date();
+  const time = `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}`;
+  logs.unshift({ tag, text, time });
+  document.getElementById('logText').value = '';
+  renderLogs();
+  showToast('📝 已记录到学习日志', 'success');
+  updateProgress(+5);
+}
+
+function renderLogs() {
+  const tagNames = { insight:'💡 关键发现', issue:'❗ 困难', progress:'🌟 进展', question:'❓ 疑问' };
+  const tagClasses = { insight:'tag-insight', issue:'tag-issue', progress:'tag-progress', question:'tag-question' };
+  document.getElementById('logEntries').innerHTML = logs.map(l => `
+    <div class="log-entry">
+      <div class="log-meta">
+        <span><span class="log-tag ${tagClasses[l.tag]}">${tagNames[l.tag]}</span></span>
+        <span>${l.time}</span>
+      </div>
+      <div>${l.text}</div>
+    </div>
+  `).join('');
+}
+
+// =================== STEP VISUALIZER ===================
+function runStepVisualizer(blocks) {
+  const stepPanel = document.getElementById('stepList');
+  if (!stepPanel) return;
+
+  const steps = [];
+  blocks.forEach(b => {
+    if (b.type === 'microbit_on_start') steps.push('程序启动初始化');
+    if (b.type === 'microbit_on_button_press') steps.push(`等待按钮${b.getFieldValue('BUTTON')}被按下`);
+    if (b.type === 'microbit_forever') steps.push('进入无限循环');
+    if (b.type === 'microbit_show_icon') steps.push(`显示图标: ${b.getFieldValue('ICON')}`);
+    if (b.type === 'microbit_show_string') steps.push('显示文字');
+    if (b.type === 'microbit_pause') steps.push('等待延时');
+    if (b.type === 'microbit_clear_display') steps.push('清空屏幕');
+    if (b.type === 'controls_if') steps.push('执行条件判断');
+    if (b.type === 'microbit_temperature') steps.push('读取温度传感器');
+  });
+
+  if (steps.length === 0) return;
+
+  stepPanel.innerHTML = steps.map((s,i) => `
+    <div class="step-item" id="step-${i}">
+      <div class="step-num">${i+1}</div>
+      <div>${s}</div>
+    </div>
+  `).join('');
+
+  // Animate
+  let current = 0;
+  const animate = () => {
+    if (current > 0) {
+      const prev = document.getElementById(`step-${current-1}`);
+      if (prev) { prev.classList.remove('executing'); prev.classList.add('done'); }
+    }
+    const el = document.getElementById(`step-${current}`);
+    if (el) el.classList.add('executing');
+    current++;
+    if (current <= steps.length) setTimeout(animate, 600);
+  };
+  animate();
+}
+
+// =================== PROGRESS ===================
+let progress = 42;
+function updateProgress(delta) {
+  if (delta) progress = Math.min(100, Math.max(0, progress + delta));
+  const blocks = workspace ? workspace.getAllBlocks().length : 0;
+  const auto = Math.min(30, blocks * 3);
+  const total = Math.min(100, Math.max(progress, auto));
+  document.getElementById('progressPct').textContent = total + '%';
+  document.getElementById('progressFill').style.width = total + '%';
+}
+
+// CT Dimension scores
+let ctScores = { creativity:65, algorithm:58, collaboration:72, critical:61, problem:55 };
+function updateCTDimensions() {
+  const keys = Object.keys(ctScores);
+  keys.forEach(k => { ctScores[k] = Math.min(100, ctScores[k] + Math.floor(Math.random()*6+2)); });
+  renderCTMini();
+}
+
+function renderCTMini() {
+  const labels = { creativity:'创造力', algorithm:'算法思维', collaboration:'协作', critical:'批判思维', problem:'问题解决' };
+  const colors = { creativity:'#8b5cf6', algorithm:'#06b6d4', collaboration:'#10b981', critical:'#f59e0b', problem:'#ef4444' };
+  document.getElementById('ctMini').innerHTML = Object.entries(ctScores).map(([k,v]) => `
+    <div style="margin-bottom:5px;">
+      <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text-muted);margin-bottom:2px;">
+        <span>${labels[k]}</span><span>${v}</span>
+      </div>
+      <div style="height:4px;background:#e2e8f0;border-radius:2px;overflow:hidden;">
+        <div style="width:${v}%;height:100%;background:${colors[k]};border-radius:2px;transition:width 0.8s"></div>
+      </div>
+    </div>
+  `).join('');
+}
+
+// =================== MICROBIT TAB CONTENT ===================
+function buildMicrobitTab() {
+  const tab = document.getElementById('microbitTab');
+  if (!tab) return;
+  tab.innerHTML = `
+    <div style="display:flex;gap:16px;padding:16px;flex-wrap:wrap;align-items:flex-start;">
+      <div class="microbit-wrap" style="flex-shrink:0;">
+        <div class="microbit-device">
+          <div class="microbit-label">BBC micro:bit</div>
+          <div class="microbit-screen" id="mbScreen"></div>
+          <div class="microbit-buttons">
+            <button class="mb-btn" onclick="pressButton('A')">A</button>
+            <button class="mb-btn" onclick="pressButton('B')">B</button>
+          </div>
+        </div>
+        <button class="run-btn" onclick="runCode()" style="width:200px;">
+          ▶ 运行程序
+        </button>
+      </div>
+      <div style="flex:1;min-width:200px;">
+        <div style="font-size:12px;font-weight:700;color:var(--text-muted);margin-bottom:8px;">生成的 MicroPython 代码</div>
+        <div class="code-preview" id="codePreview">from microbit import *
+
+# 拖入积木后点击"生成代码"
+# 查看对应的 Python 代码</div>
+        <div style="margin-top:12px;">
+          <div class="step-viz-title">📍 程序执行步骤（可视化）</div>
+          <div class="step-list" id="stepList">
+            <div style="color:var(--text-muted);font-size:12px;padding:8px;">运行程序后显示执行步骤动画...</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+  buildMicrobitPanel();
+}
+
+// =================== PROGRESS TAB ===================
+function buildProgressTab() {
+  const tab = document.getElementById('progressTab');
+  if (!tab) return;
+
+  const dimLabels = { creativity:'创造力', algorithm:'算法思维', collaboration:'协作能力', critical:'批判性思维', problem:'问题解决' };
+  const dimDesc = {
+    creativity:'产生新颖独特的解决方案，敢于尝试非常规思路',
+    algorithm:'将问题解决方案表达为清晰、有序、可执行的步骤',
+    collaboration:'在团队中通过合作学习、观点共享解决问题',
+    critical:'系统分析复杂问题，制定条理清晰的解决方案',
+    problem:'将问题表征为抽象模型，按步骤实施解决方案'
+  };
+  const colors = { creativity:'#8b5cf6', algorithm:'#06b6d4', collaboration:'#10b981', critical:'#f59e0b', problem:'#ef4444' };
+
+  tab.innerHTML = `
+    <div style="padding:20px;max-width:700px;margin:0 auto;">
+      <h2 style="font-size:20px;font-weight:800;margin-bottom:4px;">📊 计算思维发展进度</h2>
+      <p style="color:var(--text-muted);font-size:13px;margin-bottom:20px;">基于 Korkmaz et al. (2017) 计算思维量表 · 五维度追踪</p>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:24px;">
+        ${Object.entries(ctScores).map(([k,v]) => `
+          <div style="padding:14px 16px;border-radius:10px;border:1px solid var(--border);background:white;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+              <span style="font-size:13px;font-weight:700;">${dimLabels[k]}</span>
+              <span style="font-size:20px;font-weight:800;color:${colors[k]}">${v}</span>
+            </div>
+            <div style="height:8px;background:#f1f5f9;border-radius:4px;overflow:hidden;margin-bottom:8px;">
+              <div style="width:${v}%;height:100%;background:${colors[k]};border-radius:4px;transition:width 1s ease;"></div>
+            </div>
+            <div style="font-size:11px;color:var(--text-muted);line-height:1.5;">${dimDesc[k]}</div>
+          </div>
+        `).join('')}
+      </div>
+
+      <div style="background:white;border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:16px;">
+        <div style="font-weight:700;margin-bottom:12px;">📈 DBR迭代进度</div>
+        <div style="display:flex;gap:0;position:relative;margin-bottom:16px;">
+          <div style="position:absolute;top:16px;left:0;right:0;height:2px;background:var(--border);z-index:0;"></div>
+          ${[{n:1,t:'基础输入输出',s:'done',desc:'LED与按钮'},
+            {n:2,t:'变量与条件',s:'active',desc:'智能计数器'},
+            {n:3,t:'综合创意项目',s:'pending',desc:'校园助手'}].map(r=>`
+            <div style="flex:1;display:flex;flex-direction:column;align-items:center;position:relative;z-index:1;">
+              <div style="width:32px;height:32px;border-radius:50%;background:${r.s==='done'?'var(--success)':r.s==='active'?'var(--primary)':'var(--border)'};
+                color:white;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;
+                box-shadow:${r.s==='active'?'0 0 0 4px rgba(37,99,235,0.2)':'none'}">
+                ${r.s==='done'?'✓':r.n}
+              </div>
+              <div style="margin-top:6px;font-size:12px;font-weight:700;color:${r.s==='pending'?'var(--text-muted)':'var(--text)'}">${r.t}</div>
+              <div style="font-size:10px;color:var(--text-muted)">${r.desc}</div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+
+      <div style="background:white;border:1px solid var(--border);border-radius:10px;padding:16px;">
+        <div style="font-weight:700;margin-bottom:10px;">🧠 AI功能使用情况</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
+          ${[{icon:'✨',label:'意图识别',count:12,color:'#8b5cf6'},
+            {icon:'🔍',label:'漏洞检测',count:8,color:'#ef4444'},
+            {icon:'🚀',label:'挑战完成',count:5,color:'#10b981'}].map(s=>`
+            <div style="text-align:center;padding:12px;background:#f8fafc;border-radius:8px;border:1px solid var(--border);">
+              <div style="font-size:24px">${s.icon}</div>
+              <div style="font-size:22px;font-weight:800;color:${s.color}">${s.count}</div>
+              <div style="font-size:11px;color:var(--text-muted)">${s.label}</div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// =================== BUTTON PRESS SIMULATION ===================
+function pressButton(btn) {
+  showToast(`🔘 模拟按下按钮 ${btn}`, 'info');
+  const blocks = workspace.getAllBlocks();
+  blocks.forEach(b => {
+    if (b.type === 'microbit_on_button_press' && b.getFieldValue('BUTTON') === btn) {
+      // Find child blocks and simulate
+      const child = b.getInputTargetBlock('DO');
+      if (child) {
+        if (child.type === 'microbit_show_icon') {
+          const icon = child.getFieldValue('ICON');
+          setLEDPattern(LED_PATTERNS[icon] || LED_PATTERNS.CLEAR);
+        } else if (child.type === 'microbit_show_number') {
+          showChar(String(Math.floor(Math.random()*9+1)));
+        } else if (child.type === 'microbit_clear_display') {
+          setLEDPattern(LED_PATTERNS.CLEAR);
+        }
+      }
+    }
+  });
+}
+
+// =================== EXAMPLE PROGRAM ===================
+function loadExample() {
+  workspace.clear();
+  const xml = `<xml>
+    <block type="microbit_on_button_press" x="40" y="30">
+      <field name="BUTTON">A</field>
+      <statement name="DO">
+        <block type="microbit_show_icon">
+          <field name="ICON">HEART</field>
+          <next>
+            <block type="microbit_pause">
+              <value name="MS"><block type="math_number"><field name="NUM">1000</field></block></value>
+              <next><block type="microbit_clear_display"></block></next>
+            </block>
+          </next>
+        </block>
+      </statement>
+    </block>
+    <block type="microbit_on_button_press" x="280" y="30">
+      <field name="BUTTON">B</field>
+      <statement name="DO">
+        <block type="microbit_show_icon">
+          <field name="ICON">HAPPY</field>
+          <next>
+            <block type="microbit_pause">
+              <value name="MS"><block type="math_number"><field name="NUM">1000</field></block></value>
+              <next><block type="microbit_clear_display"></block></next>
+            </block>
+          </next>
+        </block>
+      </statement>
+    </block>
+  </xml>`;
+  try {
+    const dom = Blockly.utils.xml.textToDom(xml);
+    Blockly.Xml.domToWorkspace(dom, workspace);
+  } catch(e) { console.log('Example load error:', e); }
+  showToast('📂 已加载示例程序：按A显示爱心，按B显示笑脸', 'info');
+}
+
+function clearWorkspace() {
+  if (confirm('确定要清空工作区吗？')) {
+    workspace.clear();
+    showToast('🗑️ 工作区已清空', 'info');
+  }
+}
+
+// =================== UI HELPERS ===================
+function switchTab(el, tab) {
+  document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
+  if (el) el.classList.add('active');
+
+  const ws = document.querySelector('.main-layout');
+  const microbitTabEl = document.getElementById('microbitTabPanel');
+  const progressTabEl = document.getElementById('progressTabPanel');
+  const blocklySection = document.querySelector('.workspace-center');
+  const toolboxSidebar = document.querySelector('.toolbox-sidebar');
+  const rightPanel = document.querySelector('.right-panel');
+
+  if (tab === 'workspace') {
+    if (microbitTabEl) microbitTabEl.style.display = 'none';
+    if (progressTabEl) progressTabEl.style.display = 'none';
+    if (blocklySection) blocklySection.style.display = '';
+    if (toolboxSidebar) toolboxSidebar.style.display = '';
+    if (rightPanel) rightPanel.style.display = '';
+  } else if (tab === 'microbit') {
+    showMicrobitTab();
+  } else if (tab === 'progress') {
+    showProgressTab();
+  }
+}
+
+function showMicrobitTab() {
+  const blocklySection = document.querySelector('.workspace-center');
+  const toolboxSidebar = document.querySelector('.toolbox-sidebar');
+  const rightPanel = document.querySelector('.right-panel');
+  if (blocklySection) blocklySection.style.display = 'none';
+  if (toolboxSidebar) toolboxSidebar.style.display = 'none';
+  if (rightPanel) rightPanel.style.display = 'none';
+
+  let panel = document.getElementById('microbitTabPanel');
+  if (!panel) {
+    panel = document.createElement('div');
+    panel.id = 'microbitTabPanel';
+    panel.style.cssText = 'flex:1;overflow-y:auto;background:var(--bg);';
+    document.querySelector('.main-layout').appendChild(panel);
+  }
+  panel.style.display = '';
+  document.getElementById('microbitTab') && (document.getElementById('microbitTab').id = 'microbitTabOld');
+  panel.id = 'microbitTabPanel';
+  panel.innerHTML = `<div id="microbitTab"></div>`;
+  buildMicrobitTab();
+  buildMicrobitPanel();
+
+  let progressPanel = document.getElementById('progressTabPanel');
+  if (progressPanel) progressPanel.style.display = 'none';
+}
+
+function showProgressTab() {
+  const blocklySection = document.querySelector('.workspace-center');
+  const toolboxSidebar = document.querySelector('.toolbox-sidebar');
+  const rightPanel = document.querySelector('.right-panel');
+  if (blocklySection) blocklySection.style.display = 'none';
+  if (toolboxSidebar) toolboxSidebar.style.display = 'none';
+  if (rightPanel) rightPanel.style.display = 'none';
+
+  let panel = document.getElementById('progressTabPanel');
+  if (!panel) {
+    panel = document.createElement('div');
+    panel.id = 'progressTabPanel';
+    panel.style.cssText = 'flex:1;overflow-y:auto;background:var(--bg);';
+    document.querySelector('.main-layout').appendChild(panel);
+  }
+  panel.style.display = '';
+  panel.innerHTML = `<div id="progressTab"></div>`;
+  buildProgressTab();
+
+  let microbitPanel = document.getElementById('microbitTabPanel');
+  if (microbitPanel) microbitPanel.style.display = 'none';
+}
+
+function switchPanel(el, name, force) {
+  if (el) {
+    document.querySelectorAll('.panel-tab').forEach(t=>t.classList.remove('active'));
+    el.classList.add('active');
+  }
+  document.querySelectorAll('.panel-content').forEach(p=>p.classList.remove('active'));
+  const target = document.getElementById(`panel-${name}`);
+  if (target) target.classList.add('active');
+
+  if (name === 'challenge' && (document.getElementById('challengeList').children.length === 0 || force)) {
+    refreshChallenges();
+  }
+}
+
+function filterCat(el, cat) {
+  document.querySelectorAll('.cat-item').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active');
+  // In a full implementation, would filter the toolbox flyout
+  showToast(`筛选积木分类：${el.textContent.trim()}`, 'info');
+}
+
+function showToast(msg, type='info') {
+  const container = document.getElementById('toastContainer');
+  const toast = document.createElement('div');
+  toast.className = `toast ${type}`;
+  toast.innerHTML = msg;
+  container.appendChild(toast);
+  setTimeout(() => {
+    toast.style.animation = 'slideIn 0.3s ease reverse';
+    setTimeout(() => toast.remove(), 300);
+  }, 3000);
+}
+
+function closeModal() {
+  document.getElementById('onboardModal').style.display = 'none';
+  showToast('🎉 欢迎开始你的BlocklyAI之旅！', 'success');
+}
+
+// =================== INIT ===================
+window.addEventListener('load', () => {
+  initBlockly();
+  renderLogs();
+  renderCTMini();
+  refreshChallenges();
+  updateProgress();
+
+  // Observe workspace for Blockly resize
+  const observer = new ResizeObserver(() => {
+    if (workspace) Blockly.svgResize(workspace);
+  });
+  observer.observe(document.getElementById('blockly-container'));
+});
+</script>
+</body>
+</html>
